@@ -1,9 +1,13 @@
 from wifi import Cell, Scheme
 import os.path
+import subprocess
 import json
+import time
 
-file_path = '/var/www/html/config.json'
-conf_flag = os.path.exists(file_path)
+conf_flag = os.path.exists('/var/www/html/config.json')
+conf_dhcp = os.path.exists('/etc/dhcp/dhcpd.conf')
+if not conf_dhcp:
+	subprocess.check_output(['sudo', 'touch', '/etc/dhcp/dhcpd.conf'])
 
 def ConnectNetwork(ssid, psk):
 	for cell in Cell.all('wlan0'):
@@ -18,6 +22,17 @@ def ConnectNetwork(ssid, psk):
 				return 0
 			except:
 				return 1
+
+def StartHotspot():
+	try:
+		subprocess.check_output(['sudo', 'mv', '/etc/dhcp/dhcpd.conf', '/etc/dhcp/o-dhcpd.conf'])
+		subprocess.check_output(['sudo', 'cp', 'dhcpd.conf', '/etc/dhcp/dhcpd.conf'])
+		subprocess.check_output(['sudo', 'rfkill', 'unblock', 'wlan'])
+		subprocess.check_output(['sudo', 'ifconfig', 'wlan0', '10.0.0.1/24', 'up'])
+		subprocess.check_output(['sudo', 'service', 'isc-dhcp-server', 'restart'])
+		p = subprocess.check_output(['sudo', 'hostapd', '-B', 'hostapd.conf'])
+	except Exception as e:
+		print str(e)	
 			
 if conf_flag:
 	data = open(file_path, 'r')
@@ -30,4 +45,5 @@ if conf_flag:
 		print "Unable to connect to network"
 
 else:
-	print "Call Script to Start Hotspot"
+	print "Starting Hotspot"
+	StartHotspot()
